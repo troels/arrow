@@ -509,6 +509,16 @@ class Converter_Timestamp : public Converter_Time<TimestampType, value_type> {
   SEXP Allocate(R_xlen_t n) const {
     Rcpp::NumericVector data(no_init(n));
     data.attr("class") = Rcpp::CharacterVector::create("POSIXct", "POSIXt");
+
+    std::string tzone = "GMT";
+    if (Converter::arrays_.size() > 0) {
+      TimestampType *tt = static_cast<TimestampType*>(Converter::arrays_[0]->type().get());
+      if (!tt->timezone().empty()) {
+        tzone = tt->timezone();
+      }
+    }
+    data.attr("tzone") = Rcpp::CharacterVector::create(tzone);
+
     return data;
   }
 };

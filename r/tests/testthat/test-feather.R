@@ -129,4 +129,81 @@ test_that("feather read/write round trip", {
   unlink(tf1)
 })
 
+test_that("feather roundtrips timestamps and timezones", {
+    dates <- c(
+        "2001-01-04 04:04:50",
+        "2008-11-27 21:48:29",
+        "1997-05-12 16:43:40",
+        "2002-09-03 04:10:09",
+        "2000-10-19 09:34:06",
+        "2007-03-13 02:30:15",
+        "2017-01-10 02:18:12",
+        "2000-10-16 06:20:34",
+        "1971-02-10 06:01:39",
+        "1977-11-21 19:35:36"
+    )
+    dates <- as.POSIXct(strptime(dates, "%Y-%m-%d %H:%M:%S"), tz="CEST")
+    tib1 <- tibble::tibble(x = 1:10, dates = dates)
+    tf <- tempfile()
+    write_feather(tib1, tf)
 
+    expect_true(fs::file_exists(tf))
+    tab1 <- read_feather(tf, as_tibble = FALSE)
+    expect_is(tab1, "arrow::Table")
+
+    tib2 <- as.data.frame(tab1)
+    expect_equal(tib1, tib2)
+    expect_equal(attr(tib2$dates, "tzone"), attr(tib1$dates, "tzone"))
+})
+
+test_that("feather chooses timezone Sys.timezone when not explicitly set", {
+    dates <- c(
+        "2001-01-04 04:04:50",
+        "2008-11-27 21:48:29",
+        "1997-05-12 16:43:40",
+        "2002-09-03 04:10:09",
+        "2000-10-19 09:34:06",
+        "2007-03-13 02:30:15",
+        "2017-01-10 02:18:12",
+        "2000-10-16 06:20:34",
+        "1971-02-10 06:01:39",
+        "1977-11-21 19:35:36"
+    )
+    dates <- as.POSIXct(strptime(dates, "%Y-%m-%d %H:%M:%S"))
+    tib1 <- tibble::tibble(x = 1:10, dates = dates)
+    expect_equal(attr(tib1$dates, "tzone"), "")
+    tf <- tempfile()
+    write_feather(tib1, tf)
+
+    expect_true(fs::file_exists(tf))
+    tab <- read_feather(tf, as_tibble = FALSE)
+    expect_is(tab, "arrow::Table")
+
+    tib2 <- as.data.frame(tab)
+    expect_equal(tib1, tib2)
+    expect_equal(attr(tib2$dates, "tzone"), Sys.timezone())
+})
+
+test_that("feather serialization sets NULL timezone to GMT", {
+    dates <- c(
+        "2001-01-04 04:04:50",
+        "2008-11-27 21:48:29",
+        "1997-05-12 16:43:40",
+        "2002-09-03 04:10:09",
+        "2000-10-19 09:34:06",
+        "2007-03-13 02:30:15",
+        "2017-01-10 02:18:12",
+        "2000-10-16 06:20:34",
+        "1971-02-10 06:01:39",
+        "1977-11-21 19:35:36"
+    )
+    dates <- as.POSIXct(strptime(dates, "%Y-%m-%d %H:%M:%S"), tz="CEST")
+    tib1 <- tibble::tibble(x = 1:10, dates = dates)
+    attr(tib1$dates, "tzone") <- NULL
+    tf <- tempfile()
+    write_feather(tib1, tf)
+
+    tib2 <- read_feather(tf, as_tibble = TRUE)
+    expect_equal(tib1, tib2)
+    expect_equal(attr(tib2$dates, "tzone"), "GMT")
+})

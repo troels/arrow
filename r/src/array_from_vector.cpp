@@ -768,6 +768,34 @@ std::shared_ptr<arrow::DataType> GetFactorType(SEXP factor) {
   }
 }
 
+namespace {
+template <int RTYPE>
+std::string get_tzone(SEXP x) {
+  Rcpp::Vector<RTYPE> vec(x);
+  std::string tzone;
+
+  SEXP tzone_sexp = vec.attr("tzone");
+  if (Rf_isValidString(tzone_sexp)) {
+    tzone = Rcpp::as<std::string>(tzone_sexp);
+  } else {
+    // Default invalid timezones to GMT
+    tzone = "GMT";
+  }
+  if (tzone.empty()) {
+    // Empty timezone is current time zone, according to
+    // R documentation.
+    Rcpp::Function get_sys_timezone("Sys.timezone");
+    tzone = Rcpp::as<std::string>(get_sys_timezone());
+  }
+
+  // If still nothing, default to GMT
+  if (tzone.empty()) {
+    tzone = "GMT";
+  }
+  return tzone;
+}
+};
+
 std::shared_ptr<arrow::DataType> InferType(SEXP x) {
   switch (TYPEOF(x)) {
     case ENVSXP:
@@ -787,7 +815,7 @@ std::shared_ptr<arrow::DataType> InferType(SEXP x) {
         return date32();
       }
       if (Rf_inherits(x, "POSIXct")) {
-        return timestamp(TimeUnit::MICRO, "GMT");
+        return timestamp(TimeUnit::MICRO, get_tzone<INTSXP>(x));
       }
       return int32();
     case REALSXP:
@@ -795,7 +823,7 @@ std::shared_ptr<arrow::DataType> InferType(SEXP x) {
         return date32();
       }
       if (Rf_inherits(x, "POSIXct")) {
-        return timestamp(TimeUnit::MICRO, "GMT");
+        return timestamp(TimeUnit::MICRO, get_tzone<REALSXP>(x));
       }
       if (Rf_inherits(x, "integer64")) {
         return int64();
