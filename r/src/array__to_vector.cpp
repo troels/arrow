@@ -457,7 +457,7 @@ class Converter_Promotion : public Converter {
   }
 };
 
-template <typename value_type>
+template <typename time_type, typename value_type>
 class Converter_Time : public Converter {
  public:
   explicit Converter_Time(const ArrayVector& arrays) : Converter(arrays) {}
@@ -485,7 +485,7 @@ class Converter_Time : public Converter {
 
  private:
   int TimeUnit_multiplier(const std::shared_ptr<Array>& array) const {
-    switch (static_cast<TimeType*>(array->type().get())->unit()) {
+    switch (static_cast<time_type*>(array->type().get())->unit()) {
       case TimeUnit::SECOND:
         return 1;
       case TimeUnit::MILLI:
@@ -501,10 +501,10 @@ class Converter_Time : public Converter {
 };
 
 template <typename value_type>
-class Converter_Timestamp : public Converter_Time<value_type> {
+class Converter_Timestamp : public Converter_Time<TimestampType, value_type> {
  public:
   explicit Converter_Timestamp(const ArrayVector& arrays)
-      : Converter_Time<value_type>(arrays) {}
+      : Converter_Time<TimestampType, value_type>(arrays) {}
 
   SEXP Allocate(R_xlen_t n) const {
     Rcpp::NumericVector data(no_init(n));
@@ -685,10 +685,10 @@ std::shared_ptr<Converter> Converter::Make(const ArrayVector& arrays) {
 
       // time32 ane time64
     case Type::TIME32:
-      return std::make_shared<arrow::r::Converter_Time<int32_t>>(arrays);
+      return std::make_shared<arrow::r::Converter_Time<TimeType, int32_t>>(arrays);
 
     case Type::TIME64:
-      return std::make_shared<arrow::r::Converter_Time<int64_t>>(arrays);
+      return std::make_shared<arrow::r::Converter_Time<TimeType, int64_t>>(arrays);
 
     case Type::TIMESTAMP:
       return std::make_shared<arrow::r::Converter_Timestamp<int64_t>>(arrays);
